@@ -1,0 +1,15 @@
+name: SQL 🎳
+
+on:
+  pull_request:
+
+jobs:
+  test-migration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Running tests
+        run: make test-migration

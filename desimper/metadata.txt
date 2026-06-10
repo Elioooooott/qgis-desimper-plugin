@@ -1,0 +1,31 @@
+[general]
+name=desimper
+qgisMinimumVersion=3.34
+description=desimper
+
+# Done by qgis-plugin-ci
+version=master
+changelog=
+commitNumber=
+commitSha1=
+dateTime=
+# End of qgis-plugin-ci
+
+author=3Liz
+email=info@3liz.com
+tags=desimper
+about=desimper
+icon=resources/icons/icon.png
+category=
+tracker=https://github.com/3liz/qgis-liz-example-plugin
+repository=https://github.com/3liz/qgis-liz-example-plugin
+homepage=https://github.com/3liz/qgis-liz-example-plugin
+experimental=True
+deprecated=False
+supportQt6=True
+
+hasProcessingProvider=True
+
+[desimper]
+schemaVersion=1
+schemaName=desimper

@@ -1,8 +1,8 @@
 site_name: Desimper plugin
 site_author: 3Liz
 site_description: Desimper plugin
-site_url: https://docs.3liz.org/qgis-liz-example-plugin/
-repo_url: https://github.com/3liz/qgis-liz-example-plugin/
+site_url: https://docs.3liz.org/qgis-desimper-plugin/
+repo_url: https://github.com/3liz/qgis-desimper-plugin/
 copyright: '<span class="copyleft">&copy;</span> 3Liz'
 
 docs_dir: docs

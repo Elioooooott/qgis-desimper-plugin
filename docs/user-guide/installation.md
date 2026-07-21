@@ -18,7 +18,7 @@ You can download QGIS in the [official download page](https://qgis.org/fr/site/f
 At present, the plugin is not yet in QGIS official plugin repository. To install the plugin, you need to:
 
 * open QGIS **Plugin manager** (menu Plugins)
-* in the **Parameters** tab, add a new plugin repository name **Desimper** with the URL: https://github.com/3liz/qgis-liz-example-plugin/releases/latest/download/plugins.xml
+* in the **Parameters** tab, add a new plugin repository name **Desimper** with the URL: https://github.com/3liz/qgis-desimper-plugin/releases/latest/download/plugins.xml
 
 * In the **All** tab, search for the word `Desimper` and install the **Desimper** plugin.
 

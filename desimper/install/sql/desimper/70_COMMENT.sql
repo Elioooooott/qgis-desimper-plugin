@@ -180,7 +180,7 @@ COMMENT ON TABLE desimper.pluviometrie IS 'Table des pluviometries';
 
 
 -- pluviometrie.id
-COMMENT ON COLUMN desimper.pluviometrie.id IS 'Identifiant uCreationnique des pluviometries';
+COMMENT ON COLUMN desimper.pluviometrie.id IS 'Identifiant unique des pluviometries';
 
 
 -- pluviometrie.geom

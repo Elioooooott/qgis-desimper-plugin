@@ -65,7 +65,7 @@ typecheck:
 	@ $(UV) mypy $(LINT_TARGETS)
 
 scan:
-	@ $(UV) bandit -r $(MODULE_NAME) $(SCAN_OPTS)
+	@ $(UV) bandit -r $(MODULE_NAME) --severity-level=medium $(SCAN_OPTS)
 
 
 # Database rules

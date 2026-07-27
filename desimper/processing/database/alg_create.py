@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from psycopg2 import connect
+from psycopg2 import sql as psql
+
 from qgis.core import (
     QgsProcessingException,
     QgsProcessingFeedback,
@@ -11,6 +14,7 @@ from qgis.core import (
     QgsProject,
     QgsProviderConnectionException,
     QgsProviderRegistry,
+    QgsDataSourceUri,
 )
 
 from ..tools import get_connection_name
@@ -130,6 +134,8 @@ class CreateDatabaseStructure(BaseDatabaseAlgorithm):
         if not connection:
             raise QgsProcessingException(f"La connexion {connection_name} n'existe pas.")
 
+        pg_conn = connect(QgsDataSourceUri(connection.uri()).connectionInfo())
+
         # Drop schema if needed
         if override:
             feedback.pushInfo(tr(f"Trying to drop schema {schema}…"))
@@ -181,17 +187,22 @@ class CreateDatabaseStructure(BaseDatabaseAlgorithm):
                 feedback.pushInfo("  Success !")
 
         metadata_version = version
-        sql = f"""
+        query = psql.SQL("""
             INSERT INTO {schema}.metadata
             (id, me_version, me_version_date, me_status)
             VALUES (
-                1, '{metadata_version}', now()::timestamp(0), 1
-            )"""
+                1, {version}, now()::timestamp(0), 1
+            )""").format(
+            schema=psql.Identifier(schema),
+            version=psql.Literal(metadata_version),
+        )
 
         try:
-            connection.executeSql(sql)
+            connection.executeSql(query.as_string(pg_conn))
         except QgsProviderConnectionException as e:
-            raise QgsProcessingException(str(e))
+            raise QgsProcessingException(str(e)) from None
+
+        pg_conn.close()
 
     def processAlgorithm(self, parameters, context, feedback):
         connection_name = self.parameterAsConnectionName(parameters, self.CONNECTION_NAME, context)

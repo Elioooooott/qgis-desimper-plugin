@@ -1,3 +1,5 @@
+from psycopg2 import connect
+from psycopg2 import sql as psql
 from qgis.core import (
     QgsProcessingException,
     QgsProcessingOutputNumber,
@@ -8,6 +10,8 @@ from qgis.core import (
     QgsProject,
     QgsProviderConnectionException,
     QgsProviderRegistry,
+    QgsDataSourceUri,
+    QgsProcessingFeedback,
 )
 
 from ..tools import get_connection_name
@@ -107,36 +111,43 @@ class UpgradeDatabaseStructure(BaseDatabaseAlgorithm):
 
         return super(UpgradeDatabaseStructure, self).checkParameterValues(parameters, context)
 
-    def processAlgorithm(self, parameters, context, feedback):
-        # Run migration
-        run_migrations = self.parameterAsBool(parameters, self.RUN_MIGRATIONS, context)
-        if not run_migrations:
-            msg = tr("Vous devez cocher cette case pour réaliser la mise à jour !")
-            raise QgsProcessingException(msg)
-
+    @staticmethod
+    def upgrade_database(
+        connection_name: str,
+        schema: str,
+        *,
+        run_migrations: bool,
+        feedback: QgsProcessingFeedback,
+    ) -> bool:
         metadata = QgsProviderRegistry.instance().providerMetadata("postgres")
-        connection_name = self.parameterAsConnectionName(parameters, self.CONNECTION_NAME, context)
-        schema = self.parameterAsString(parameters, self.SCHEMA, context)
-
         connection = metadata.findConnection(connection_name)
+        pg_conn = connect(QgsDataSourceUri(connection.uri()).connectionInfo())
 
         # Get database version
-        sql = f"""
+        sql = (
+            psql.SQL("""
             SELECT me_version
             FROM {schema}.metadata
             WHERE me_status = 1
             ORDER BY me_version_date DESC
             LIMIT 1;
-        """
+        """)
+            .format(
+                schema=psql.Identifier(schema),
+            )
+            .as_string(pg_conn)
+        )
         try:
             data = connection.executeSql(sql)
         except QgsProviderConnectionException as e:
+            pg_conn.close()
             raise QgsProcessingException(str(e))
 
         db_version = None
         for a in data:
             db_version = int(a[0]) if a else None
         if not db_version:
+            pg_conn.close()
             error_message = tr("No installed version found in the database !")
             raise QgsProcessingException(error_message)
 
@@ -146,14 +157,13 @@ class UpgradeDatabaseStructure(BaseDatabaseAlgorithm):
         current_version = resources.schema_version()
         feedback.pushInfo(tr("Schema version") + " = {}".format(current_version))
 
-        # Return if nothing to do
+        # Check if nothing to do
         if db_version == current_version:
-            return {
-                self.OUTPUT_STATUS: 1,
-                self.OUTPUT_STRING: tr(
-                    " The database version already matches the plugin version. No upgrade needed."
-                ),
-            }
+            pg_conn.close()
+            feedback.pushInfo(
+                tr("The database version already matches the plugin version. No upgrade needed.")
+            )
+            return False
 
         migrations = resources.available_migrations(db_version)
 
@@ -174,34 +184,76 @@ class UpgradeDatabaseStructure(BaseDatabaseAlgorithm):
 
                 # Add SQL database version in adresse.metadata
                 feedback.pushInfo(tr("* NEW DB VERSION ") + str(new_db_version))
-                sql += f"""
+                sql += (
+                    psql.SQL("""
                     UPDATE {schema}.metadata
                     SET (me_version, me_version_date)
-                    = ( '{new_db_version}', now()::timestamp(0) );
-                """
+                    = ( {new_version}, now()::timestamp(0) );
+                """)
+                    .format(
+                        schema=psql.Identifier(schema),
+                        new_version=psql.Literal(new_db_version),
+                    )
+                    .as_string(pg_conn)
+                )
 
                 try:
                     connection.executeSql(sql)
                 except QgsProviderConnectionException as e:
                     feedback.reportError("Error when executing file {}".format(sql_file.name))
                     connection.executeSql("ROLLBACK;")
+                    pg_conn.close()
                     raise QgsProcessingException(str(e))
 
                 feedback.pushInfo(f"* {sql_file} -- OK !")
 
         # Everything is fine, we now update to the plugin version
-        sql = f"""
+        sql = (
+            psql.SQL("""
             UPDATE {schema}.metadata
             SET (me_version, me_version_date)
-            = ( '{current_version}', now()::timestamp(0) );
-        """
+            = ( {current_version}, now()::timestamp(0) );
+        """)
+            .format(
+                schema=psql.Identifier(schema),
+                current_version=psql.Literal(current_version),
+            )
+            .as_string(pg_conn)
+        )
 
         try:
             connection.executeSql(sql)
         except QgsProviderConnectionException as e:
-            raise QgsProcessingException(str(e))
+            pg_conn.close()
+            raise QgsProcessingException(str(e)) from None
 
-        msg = tr("*** THE DATABASE STRUCTURE HAS BEEN UPDATED ***")
+        pg_conn.close()
+
+        return True
+
+
+    def processAlgorithm(self, parameters, context, feedback):
+        connection_name = self.parameterAsConnectionName(parameters, self.CONNECTION_NAME, context)
+        schema = self.parameterAsString(parameters, self.SCHEMA, context)
+        # Run migration
+        run_migrations = self.parameterAsBool(parameters, self.RUN_MIGRATIONS, context)
+        if not run_migrations:
+            msg = tr("Vous devez cocher cette case pour réaliser la mise à jour !")
+            raise QgsProcessingException(msg)
+
+        # Upgrade schema
+        feedback.pushInfo(tr("Upgrade shema"))
+        upgraded = self.upgrade_database(
+            connection_name,
+            schema,
+            run_migrations=run_migrations,
+            feedback=feedback
+        )
+
+        if upgraded:
+            msg = tr("*** THE DATABASE STRUCTURE HAS BEEN UPDATED ***")
+        else:
+            msg = tr(" The database version already matches the plugin version. No upgrade needed.")
         feedback.pushInfo(msg)
 
         return {self.OUTPUT_STATUS: 1, self.OUTPUT_STRING: msg}

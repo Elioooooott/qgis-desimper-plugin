@@ -20,19 +20,26 @@ from desimper.processing.provider import Provider
 # as it correspond to the list of tables
 # created for the first version
 TABLES_FOR_FIRST_VERSION = [
-    "glossary_test_category",
+    "communes",
+    "contexte_baignade",
+    "contexte_mouvement_terrain",
+    "contextes_projets",
+    "liste_contextes",
     "metadata",
-    "test",
+    "nomenclature_destinations",
+        "nomenclature_pollution",
+    "nomenclature_revetements",
+    "nomenclature_type_projet",
+    "nomenclature_usages_surface",
+    "pluviometrie",
+    "projets",
+    "surfaces_projet",
+    "variantes",
 ]
 
 # Expected list of tables for current version
 # Must be changed any time the SQL structure is changed
-TABLES_FOR_CURRENT_VERSION = [
-    "bob",
-    "glossary_test_category",
-    "metadata",
-    "test",
-]
+TABLES_FOR_CURRENT_VERSION = [*TABLES_FOR_FIRST_VERSION]
 
 
 def test_processing_create(processing_provider: Provider):
@@ -203,3 +210,5 @@ def test_upgrade_from(
     case.assertCountEqual(TABLES_FOR_CURRENT_VERSION, result)
 
     assert result == TABLES_FOR_CURRENT_VERSION
+
+    db_connection.close()

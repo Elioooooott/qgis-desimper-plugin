@@ -208,5 +208,3 @@ def test_upgrade_from(
     case.assertCountEqual(TABLES_FOR_CURRENT_VERSION, result)
 
     assert result == TABLES_FOR_CURRENT_VERSION
-
-    db_connection.close()

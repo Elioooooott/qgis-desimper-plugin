@@ -83,10 +83,9 @@ CREATE TABLE desimper.liste_contextes (
     code text NOT NULL,
     libelle text NOT NULL,
     description text NOT NULL,
-    type_geom text NOT NULL,
     type_valeur text NOT NULL,
-    nom_table character varying(50),
-    nom_schema character varying(50)
+    nom_table character varying(50) NOT NULL,
+    nom_schema character varying(50) NOT NULL
 );
 
 

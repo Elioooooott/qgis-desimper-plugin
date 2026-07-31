@@ -83,10 +83,6 @@ COMMENT ON COLUMN desimper.liste_contextes.libelle IS 'Libelle du contexte';
 COMMENT ON COLUMN desimper.liste_contextes.description IS 'Description du contexte';
 
 
--- liste_contextes.type_geom
-COMMENT ON COLUMN desimper.liste_contextes.type_geom IS 'Type de geometrie';
-
-
 -- liste_contextes.type_valeur
 COMMENT ON COLUMN desimper.liste_contextes.type_valeur IS 'Type des valeurs qualifiant le contexte (integer, text...)';
 

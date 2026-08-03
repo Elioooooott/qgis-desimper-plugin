@@ -19,6 +19,10 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- FUNCTION import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text)
+COMMENT ON FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) IS 'Import data from temporary tables into schema and table defined in desimper.liste_contextes';
+
+
 -- communes
 COMMENT ON TABLE desimper.communes IS 'Table des communes';
 
@@ -77,10 +81,6 @@ COMMENT ON COLUMN desimper.liste_contextes.libelle IS 'Libelle du contexte';
 
 -- liste_contextes.description
 COMMENT ON COLUMN desimper.liste_contextes.description IS 'Description du contexte';
-
-
--- liste_contextes.type_geom
-COMMENT ON COLUMN desimper.liste_contextes.type_geom IS 'Type de geometrie';
 
 
 -- liste_contextes.type_valeur
@@ -308,7 +308,7 @@ COMMENT ON COLUMN desimper.variantes.libelle IS 'Libellé de la variante';
 
 
 -- variantes.etat_initial
-COMMENT ON COLUMN desimper.variantes.etat_initial IS 'Etat initial de la variante. "Vrai" pour la première variante qui établit une description réelle du projet.';
+COMMENT ON COLUMN desimper.variantes.etat_initial IS 'État initial de la variante. "Vrai" pour la première variante qui établit une description réelle du projet.';
 
 
 -- variantes.cree_le

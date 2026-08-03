@@ -21,8 +21,6 @@ from desimper.processing.provider import Provider
 # created for the first version
 TABLES_FOR_FIRST_VERSION = [
     "communes",
-    "contexte_baignade",
-    "contexte_mouvement_terrain",
     "contextes_projets",
     "liste_contextes",
     "metadata",
@@ -210,5 +208,3 @@ def test_upgrade_from(
     case.assertCountEqual(TABLES_FOR_CURRENT_VERSION, result)
 
     assert result == TABLES_FOR_CURRENT_VERSION
-
-    db_connection.close()

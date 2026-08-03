@@ -11,6 +11,7 @@ from .database import (
     CreateDatabaseStructure,
     UpgradeDatabaseStructure,
 )
+from .alg_import_context_data import ImportContextData
 from .tools import provider_id
 
 
@@ -29,7 +30,11 @@ class Provider(QgsProcessingProvider):
         self.addAlgorithm(CreateDatabaseStructure())
         self.addAlgorithm(UpgradeDatabaseStructure())
 
+        # Administration
         self.addAlgorithm(CreateDatabaseLocalInterface())
+
+        # Editing
+        self.addAlgorithm(ImportContextData())
 
         # Put the flag back to yes
         QgsExpressionContextUtils.setGlobalVariable(f"{self.id()}_get_database_data", "yes")

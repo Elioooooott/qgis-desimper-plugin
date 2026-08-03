@@ -31,16 +31,6 @@ ALTER TABLE ONLY desimper.communes
     ADD CONSTRAINT communes_pkey PRIMARY KEY (id);
 
 
--- contexte_baignade contexte_baignade_pkey
-ALTER TABLE ONLY desimper.contexte_baignade
-    ADD CONSTRAINT contexte_baignade_pkey PRIMARY KEY (id);
-
-
--- contexte_mouvement_terrain contexte_mouvement_terrain_pkey
-ALTER TABLE ONLY desimper.contexte_mouvement_terrain
-    ADD CONSTRAINT contexte_mouvement_terrain_pkey PRIMARY KEY (id);
-
-
 -- contextes_projets contextes_projets_pkey
 ALTER TABLE ONLY desimper.contextes_projets
     ADD CONSTRAINT contextes_projets_pkey PRIMARY KEY (id);

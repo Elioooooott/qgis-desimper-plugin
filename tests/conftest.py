@@ -10,9 +10,13 @@ from qgis.PyQt.QtCore import QT_VERSION_STR
 
 # NOTE Remove if not using database
 from .conftest_database import (  # noqa F401
+    connected_database,
+    context_layer,
     db_connection,
     db_install_version,
     db_schema,
+    db_test_sql,
+    initialized_database,
     processing_provider,
 )
 from .qgis_testing import QGIS_VERSION_INT, install_logger_hook, load_plugin

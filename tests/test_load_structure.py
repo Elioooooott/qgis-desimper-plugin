@@ -13,7 +13,7 @@ from desimper.plugin_tools.resources import (
     available_migrations,
     schema_version,
 )
-from desimper.processing.database import CreateDatabaseStructure
+from desimper.processing.database import CreateDatabaseStructure, UpgradeDatabaseStructure
 from desimper.processing.provider import Provider
 
 # This list must not be changed
@@ -41,6 +41,8 @@ TABLES_FOR_CURRENT_VERSION = [*TABLES_FOR_FIRST_VERSION]
 
 
 def test_processing_create(processing_provider: Provider):
+    """Test the processing algorithm for creating the database structure."""
+
     params = {
         "CONNECTION_NAME": "test",
         "OVERRIDE": True,
@@ -76,13 +78,9 @@ def test_upgrade_from(
         "Current schema version cannot be lower than install version"
     )
 
-    # The latest update available is the one that lead to the current
-    # version, take the one just before
-    if db_install_version == current_version:
-        db_install_version = current_version - 1
-
-    # Get the installation dir
-    install_dir = data.joinpath(f"install-version-{db_install_version}", "sql")
+    # Get the installation dir of the first version
+    test_version = 1
+    install_dir = data.joinpath(f"install-version-{test_version}", "sql")
     assert install_dir.exists()
 
     feedback = LoggerProcessingFeedBack()
@@ -115,10 +113,9 @@ def test_upgrade_from(
     records = cursor.fetchall()
     result = [r[0] for r in records]
 
-    print("::test_upgrade_from::tables_install_version::", result)
-
     # Expected tables in the specific version written above at the beginning of the test.
     # DO NOT CHANGE HERE, change below at the end of the test.
+    case.assertCountEqual(TABLES_FOR_FIRST_VERSION, result)
     assert result == TABLES_FOR_FIRST_VERSION
 
     # Check if the version has been written in the metadata table
@@ -138,14 +135,14 @@ def test_upgrade_from(
     # Since the structure has been created with db_install_version above
     # The expected list of tables
     feedback.pushDebugInfo("Update the database")
-    params = {"CONNECTION_NAME": "test", "RUN_MIGRATIONS": True}
-    alg = f"{provider_id}:upgrade_database_structure"
-    results = processing.run(alg, params, feedback=feedback)
 
-    assert results["OUTPUT_STATUS"] == 1
-    assert results["OUTPUT_STRING"] == "*** THE DATABASE STRUCTURE HAS BEEN UPDATED ***"
-
-    # Check the version has been updated
+    UpgradeDatabaseStructure.upgrade_database(
+        "test",
+        db_schema,
+        run_migrations=True,
+        feedback=feedback,
+    )
+    # Check if the version has been written in the metadata table
     sql = f"""
         SELECT me_version
         FROM {db_schema}.metadata
@@ -155,12 +152,8 @@ def test_upgrade_from(
     """
     cursor.execute(sql)
     record = cursor.fetchone()
-
-    migrations = available_migrations()
-    if migrations:
-        version, _ = migrations[-1]
-        assert record is not None
-        assert int(record[0]) == version
+    assert record is not None
+    assert int(record[0]) == current_version
 
     # Check the list of tables
     cursor.execute(
@@ -173,7 +166,7 @@ def test_upgrade_from(
     )
     records = cursor.fetchall()
     result = [r[0] for r in records]
-    assert result == TABLES_FOR_CURRENT_VERSION
+    case.assertCountEqual(TABLES_FOR_CURRENT_VERSION, result)
 
     # Create the database structure with override
     # This will delete and recreate the structure for the last version

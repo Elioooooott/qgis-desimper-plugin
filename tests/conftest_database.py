@@ -73,20 +73,11 @@ def db_connection() -> Iterator[psycopg.Connection]:
     """Initialize (Override existing) and return a db connection"""
     if os.getenv("CI_ENV", "").lower() == "docker":
         connection = psycopg.connect(
-            user="docker",
-            password="docker",
-            host="db",
-            port="5432",
-            dbname="gis",
-            autocommit=True)
+            user="docker", password="docker", host="db", port="5432", dbname="gis", autocommit=True
+        )
     else:
         connection = psycopg.connect(
-            user="docker",
-            password="docker",
-            host="localhost",
-            port="35432",
-            dbname="gis",
-            autocommit=True
+            user="docker", password="docker", host="localhost", port="35432", dbname="gis", autocommit=True
         )
     try:
         yield connection
@@ -126,9 +117,7 @@ def initialized_database(
 @pytest.fixture()
 def connected_database(processing_provider: Provider) -> None:
     """Configure the plugin connection"""
-    params = {
-        "CONNECTION_NAME": "test"
-    }
+    params = {"CONNECTION_NAME": "test"}
     alg = f"{processing_provider.id()}:configure_plugin"
     processing.run(alg, params)
 

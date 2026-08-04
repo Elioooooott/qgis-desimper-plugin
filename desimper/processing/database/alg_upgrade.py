@@ -231,7 +231,6 @@ class UpgradeDatabaseStructure(BaseDatabaseAlgorithm):
 
         return True
 
-
     def processAlgorithm(self, parameters, context, feedback):
         connection_name = self.parameterAsConnectionName(parameters, self.CONNECTION_NAME, context)
         schema = self.parameterAsString(parameters, self.SCHEMA, context)
@@ -244,10 +243,7 @@ class UpgradeDatabaseStructure(BaseDatabaseAlgorithm):
         # Upgrade schema
         feedback.pushInfo(tr("Upgrade shema"))
         upgraded = self.upgrade_database(
-            connection_name,
-            schema,
-            run_migrations=run_migrations,
-            feedback=feedback
+            connection_name, schema, run_migrations=run_migrations, feedback=feedback
         )
 
         if upgraded:

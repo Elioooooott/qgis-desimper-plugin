@@ -24,7 +24,7 @@ from qgis.core import (
 )
 
 from ..plugin_tools.i18n import tr
-from ..plugin_tools.resources import plugin_name_normalized#, srid_value
+from ..plugin_tools.resources import plugin_name_normalized  # , srid_value
 from .base_algorithm import BaseProcessingAlgorithm
 from .tools import fetch_data_from_sql_query, get_connection_name, get_postgis_connection_list
 
@@ -59,9 +59,9 @@ class ImportContextData(BaseProcessingAlgorithm):
             "This algorithm imports data from a context layer to the database "
             "\n"
             "\n"
-            "You will need to provide the following parameters:" \
+            "You will need to provide the following parameters:"
             "\n"
-            "* PostgreSQL connection to the database: name of the database " \
+            "* PostgreSQL connection to the database: name of the database "
             "connection you would like to use for the installation."
             "\n"
             "* Target context: the context to which the data will be imported."
@@ -83,7 +83,7 @@ class ImportContextData(BaseProcessingAlgorithm):
     def initAlgorithm(self, config):
         project = QgsProject.instance()
         connection_name = get_connection_name(project)
-        get_data = QgsExpressionContextUtils.globalScope().variable('desimper_get_database_data')
+        get_data = QgsExpressionContextUtils.globalScope().variable("desimper_get_database_data")
 
         # Connection name
         param = QgsProcessingParameterProviderConnection(
@@ -97,24 +97,19 @@ class ImportContextData(BaseProcessingAlgorithm):
         self.addParameter(param)
 
         # Context in list_context
-        sql = '''
+        sql = """
             SELECT code, libelle
             FROM desimper.liste_contextes
             ORDER BY libelle
-        '''
+        """
         data = []
-        if get_data == 'yes' and connection_name in get_postgis_connection_list():
+        if get_data == "yes" and connection_name in get_postgis_connection_list():
             data, _ = fetch_data_from_sql_query(connection_name, sql)
-        self.context_values = [f'{a[1]} - {a[0]}' for a in data]
+        self.context_values = [f"{a[1]} - {a[0]}" for a in data]
         param = QgsProcessingParameterEnum(
-            self.TARGET_CONTEXT,
-            tr('Target context'),
-            options=self.context_values,
-            optional=False
-            )
-        param.setHelp(
-            tr("The context to which the data will be imported.")
+            self.TARGET_CONTEXT, tr("Target context"), options=self.context_values, optional=False
         )
+        param.setHelp(tr("The context to which the data will be imported."))
         self.addParameter(param)
 
         # Override existing data in the target table
@@ -140,45 +135,37 @@ class ImportContextData(BaseProcessingAlgorithm):
             tr("Context layer"),
             [QgsProcessing.SourceType.TypeVectorPolygon],
         )
-        param.setHelp(
-            tr("The layer from which the data will be imported.")
-        )
+        param.setHelp(tr("The layer from which the data will be imported."))
         self.addParameter(param)
 
         # label field
         param = QgsProcessingParameterField(
             self.LABEL_FIELD,
-            tr('Label field'),
+            tr("Label field"),
             parentLayerParameterName=self.CONTEXT_LAYER,
-            type=QgsProcessingParameterField.String
+            type=QgsProcessingParameterField.String,
         )
-        param.setHelp(
-            tr("The field from which the label will be imported.")
-        )
+        param.setHelp(tr("The field from which the label will be imported."))
         self.addParameter(param)
 
         # value field
         param = QgsProcessingParameterField(
             self.VALUE_FIELD,
-            tr('Value field'),
+            tr("Value field"),
             parentLayerParameterName=self.CONTEXT_LAYER,
-            type=QgsProcessingParameterField.Numeric
+            type=QgsProcessingParameterField.Numeric,
         )
-        param.setHelp(
-            tr("The field from which the value will be imported.")
-        )
+        param.setHelp(tr("The field from which the value will be imported."))
         self.addParameter(param)
 
         # unique id field
         param = QgsProcessingParameterField(
             self.UNIQUE_ID_FIELD,
-            tr('Unique id field'),
+            tr("Unique id field"),
             parentLayerParameterName=self.CONTEXT_LAYER,
-            type=QgsProcessingParameterField.Any
+            type=QgsProcessingParameterField.Any,
         )
-        param.setHelp(
-            tr("The field from which the unique ID will be imported.")
-        )
+        param.setHelp(tr("The field from which the unique ID will be imported."))
         self.addParameter(param)
 
         # OUTPUTS
@@ -294,9 +281,7 @@ class ImportContextData(BaseProcessingAlgorithm):
             context=context,
             feedback=feedback,
         )
-        feedback.pushInfo(
-            tr("* Context layer has been imported into temporary table") + " " + temp_table
-        )
+        feedback.pushInfo(tr("* Context layer has been imported into temporary table") + " " + temp_table)
 
         connection = (
             QgsProviderRegistry.instance().providerMetadata("postgres").findConnection(connection_name)
@@ -317,9 +302,7 @@ class ImportContextData(BaseProcessingAlgorithm):
 
         # Convert context data from temporary tables to the production schema
         feedback.pushInfo("")
-        feedback.pushInfo(
-            tr("CONVERT CONTEXT DATA FROM TEMPORARY TABLE TO THE PRODUCTION SCHEMA")
-        )
+        feedback.pushInfo(tr("CONVERT CONTEXT DATA FROM TEMPORARY TABLE TO THE PRODUCTION SCHEMA"))
 
         sql = (
             pg_sql.SQL("""
@@ -385,7 +368,6 @@ class ImportContextData(BaseProcessingAlgorithm):
 
         return {self.OUTPUT_STATUS: status, self.OUTPUT_STRING: msg}
 
-
     def _is_valid_schema_table(self, parameters, pg_conn, connection_name):
         """Check if the schema_name and table_name are listed in the context list table.
 
@@ -406,30 +388,37 @@ class ImportContextData(BaseProcessingAlgorithm):
         if error:
             return False, error, None, None
         if not data:
-            return False, tr(
-                "The context selected does not exist in the database. "
-                "\n"
-                "Create it first in the context list table."
-                ), None, None
+            return (
+                False,
+                tr(
+                    "The context selected does not exist in the database. "
+                    "\n"
+                    "Create it first in the context list table."
+                ),
+                None,
+                None,
+            )
         schema_name, table_name = data[0][0], data[0][1]
         if schema_name == NULL or table_name == NULL:
-            return False, tr(
-                "The context selected has no schema or table defined in the database."
-                "\n"
-                "Create it first in the context list table."), None, None
+            return (
+                False,
+                tr(
+                    "The context selected has no schema or table defined in the database."
+                    "\n"
+                    "Create it first in the context list table."
+                ),
+                None,
+                None,
+            )
 
         return True, "", schema_name, table_name
 
-    def _is_override_confirmed(
-        self, parameters, context, schema_name, table_name, pg_conn, connection_name
-    ):
+    def _is_override_confirmed(self, parameters, context, schema_name, table_name, pg_conn, connection_name):
         """Check the user confirmed the deletion of the data already in the target table."""
         if self.parameterAsBoolean(parameters, self.OVERRIDE, context):
             return True, ""
 
-        count, error = self._count_target_table_rows(
-            schema_name, table_name, pg_conn, connection_name
-        )
+        count, error = self._count_target_table_rows(schema_name, table_name, pg_conn, connection_name)
         if error:
             return False, error
         if count:
@@ -497,15 +486,11 @@ class ImportContextData(BaseProcessingAlgorithm):
         if error:
             return False, error
         if not data:
-            return False, tr(
-                "The temporary table does not exist in the database. "
-                )
+            return False, tr("The temporary table does not exist in the database. ")
         count_id, count_total = data[0][0], data[0][1]
         if count_id != count_total:
             return False, tr(
-                "The unique ID field contains non-unique values."
-                "\n"
-                "Be sure you selected the right field."
-                )
+                "The unique ID field contains non-unique values.\nBe sure you selected the right field."
+            )
 
         return True, ""

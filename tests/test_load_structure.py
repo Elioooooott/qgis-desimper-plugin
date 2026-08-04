@@ -25,7 +25,7 @@ TABLES_FOR_FIRST_VERSION = [
     "liste_contextes",
     "metadata",
     "nomenclature_destinations",
-        "nomenclature_pollution",
+    "nomenclature_pollution",
     "nomenclature_revetements",
     "nomenclature_type_projet",
     "nomenclature_usages_surface",

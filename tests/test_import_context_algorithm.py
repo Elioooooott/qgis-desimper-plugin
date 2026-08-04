@@ -18,7 +18,7 @@ def test_import_context(
     # Algorithm is working
     params = {
         "CONNECTION_NAME": "test",
-        "TARGET_CONTEXT": 0, # 0 = Baignade
+        "TARGET_CONTEXT": 0,  # 0 = Baignade
         "OVERRIDE": True,
         "CONTEXT_LAYER": context_layer,
         "LABEL_FIELD": "label",
@@ -48,10 +48,10 @@ def test_import_context(
 
     records = cursor.fetchall()
     result = records[0]
-    assert result[0] == '1'
-    assert result[1] == 'BAI'
-    assert result[2] == 'Pas de site de baignade'
-    assert result[3] == '0'
+    assert result[0] == "1"
+    assert result[1] == "BAI"
+    assert result[2] == "Pas de site de baignade"
+    assert result[3] == "0"
 
     # View has been created
     cursor.execute(
@@ -66,7 +66,7 @@ def test_import_context(
     # Overide is working
     params = {
         "CONNECTION_NAME": "test",
-        "TARGET_CONTEXT": 0, # 0 = Baignade
+        "TARGET_CONTEXT": 0,  # 0 = Baignade
         "OVERRIDE": True,
         "CONTEXT_LAYER": context_layer,
         "LABEL_FIELD": "label",

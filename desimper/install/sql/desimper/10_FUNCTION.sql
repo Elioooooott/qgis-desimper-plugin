@@ -19,15 +19,8 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
--- import_data_from_temporary_tables(text, text, text)
-CREATE OR REPLACE FUNCTION desimper.import_data_from_temporary_tables(
-    temp_schema text,
-    temp_table text,
-    label_field text,
-    value_field text,
-    unique_id_field text,
-    code_context text
-) RETURNS json
+-- import_data_from_temporary_tables(text, text, text, text, text, text)
+CREATE FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) RETURNS json
     LANGUAGE plpgsql
     AS $_$
 DECLARE

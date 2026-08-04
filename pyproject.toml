@@ -4,7 +4,7 @@
 [project]
 name = "desimper"
 version = "0.1.0"
-description = "An exemple of plugin development setup"
+description = "This plugin manage depaving project"
 authors = [
     { name = "3Liz", email = "info@3liz.com" }
 ]

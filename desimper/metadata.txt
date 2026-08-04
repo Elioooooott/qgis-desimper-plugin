@@ -13,7 +13,7 @@ dateTime=
 
 author=3Liz
 email=info@3liz.com
-tags=desimper
+tags=désimperméabilisation, depaving
 about=desimper
 icon=resources/icons/icon.png
 category=

@@ -55,10 +55,9 @@ CREATE TABLE desimper.contextes_projets (
     surface_m numeric(15,2) NOT NULL,
     cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
     modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
-    fk_cree_par integer NOT NULL,
-    fk_modifie_par integer,
-    code_contexte text,
-    id_objet_contexte integer
+    code_contexte text NOT NULL,
+    id_objet_contexte integer NOT NULL,
+    login text
 );
 
 
@@ -85,7 +84,10 @@ CREATE TABLE desimper.liste_contextes (
     description text NOT NULL,
     type_valeur text NOT NULL,
     nom_table character varying(50) NOT NULL,
-    nom_schema character varying(50) NOT NULL
+    nom_schema character varying(50) NOT NULL,
+    login text,
+    cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
+    modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone
 );
 
 
@@ -269,8 +271,7 @@ CREATE TABLE desimper.projets (
     geom geometry(MultiPolygon,2154) NOT NULL,
     cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
     modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
-    fk_cree_par integer DEFAULT 1 NOT NULL,
-    fk_modifie_par integer DEFAULT 1 NOT NULL
+    login text
 );
 
 
@@ -300,8 +301,7 @@ CREATE TABLE desimper.surfaces_projet (
     fk_revetements text NOT NULL,
     cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
     modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
-    fk_cree_par integer DEFAULT 1 NOT NULL,
-    fk_modifie_par integer DEFAULT 1 NOT NULL
+    login text
 );
 
 
@@ -328,8 +328,7 @@ CREATE TABLE desimper.variantes (
     etat_initial boolean DEFAULT true NOT NULL,
     cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
     modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone,
-    fk_cree_par integer DEFAULT 1 NOT NULL,
-    fk_modifie_par integer DEFAULT 1 NOT NULL
+    login text
 );
 
 

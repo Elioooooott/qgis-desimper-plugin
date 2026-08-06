@@ -19,8 +19,19 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- FUNCTION fill_contextes_projets(id_projet integer)
+COMMENT ON FUNCTION desimper.fill_contextes_projets(id_projet integer) IS 'Ajoute à la table contextes_projets les contextes qui intersectent le projet';
+
+
 -- FUNCTION import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text)
 COMMENT ON FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) IS 'Import data from temporary tables into schema and table defined in desimper.liste_contextes';
+
+
+-- FUNCTION is_given_type(s text, t text)
+COMMENT ON FUNCTION desimper.is_given_type(s text, t text) IS ' Teste si la valeur d''un champ correspond au type donné. 
+Retourne vrai s''il est possible de caster la valeur dans le type donné attendu.
+Valeurs vides et NULL sont toujours considérées valides. 
+Si le type n''est pas supporté, la valeur est considérée invalide.';
 
 
 -- communes
@@ -63,6 +74,10 @@ COMMENT ON COLUMN desimper.contextes_projets.geom IS 'Polygone représentant le 
 COMMENT ON COLUMN desimper.contextes_projets.surface_m IS 'Surface en m² du contexte';
 
 
+-- contextes_projets.login
+COMMENT ON COLUMN desimper.contextes_projets.login IS 'Login de l''utilisateur qui a créé le contexte';
+
+
 -- liste_contextes
 COMMENT ON TABLE desimper.liste_contextes IS 'Table listant l''ensemble des contextes et leurs caractéristiques';
 
@@ -85,6 +100,18 @@ COMMENT ON COLUMN desimper.liste_contextes.description IS 'Description du contex
 
 -- liste_contextes.type_valeur
 COMMENT ON COLUMN desimper.liste_contextes.type_valeur IS 'Type des valeurs qualifiant le contexte (integer, text...)';
+
+
+-- liste_contextes.login
+COMMENT ON COLUMN desimper.liste_contextes.login IS 'Login de l''utilisateur qui a créé le contexte';
+
+
+-- liste_contextes.cree_le
+COMMENT ON COLUMN desimper.liste_contextes.cree_le IS 'Date de création du contexte';
+
+
+-- liste_contextes.modifie_le
+COMMENT ON COLUMN desimper.liste_contextes.modifie_le IS 'Date de la dernière modification du contexte';
 
 
 -- metadata
@@ -239,12 +266,8 @@ COMMENT ON COLUMN desimper.projets.cree_le IS 'Date de création du projet';
 COMMENT ON COLUMN desimper.projets.modifie_le IS 'Date de modification du projet';
 
 
--- projets.fk_cree_par
-COMMENT ON COLUMN desimper.projets.fk_cree_par IS 'Utilisateur ayant créé le projet';
-
-
--- projets.fk_modifie_par
-COMMENT ON COLUMN desimper.projets.fk_modifie_par IS 'Utilisateur ayant modifié le projet';
+-- projets.login
+COMMENT ON COLUMN desimper.projets.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
 -- surfaces_projet
@@ -283,12 +306,8 @@ COMMENT ON COLUMN desimper.surfaces_projet.cree_le IS 'Date de création de la s
 COMMENT ON COLUMN desimper.surfaces_projet.modifie_le IS 'Date de modification de la surface';
 
 
--- surfaces_projet.fk_cree_par
-COMMENT ON COLUMN desimper.surfaces_projet.fk_cree_par IS 'Utilisateur ayant créé la surface';
-
-
--- surfaces_projet.fk_modifie_par
-COMMENT ON COLUMN desimper.surfaces_projet.fk_modifie_par IS 'Utilisateur ayant modifié la surface';
+-- surfaces_projet.login
+COMMENT ON COLUMN desimper.surfaces_projet.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
 -- variantes
@@ -319,12 +338,8 @@ COMMENT ON COLUMN desimper.variantes.cree_le IS 'Date de création de la variant
 COMMENT ON COLUMN desimper.variantes.modifie_le IS 'Date de modification de la variante';
 
 
--- variantes.fk_cree_par
-COMMENT ON COLUMN desimper.variantes.fk_cree_par IS 'Utilisateur ayant créé la variante';
-
-
--- variantes.fk_modifie_par
-COMMENT ON COLUMN desimper.variantes.fk_modifie_par IS 'Utilisateur ayant modifié la variante';
+-- variantes.login
+COMMENT ON COLUMN desimper.variantes.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
 --

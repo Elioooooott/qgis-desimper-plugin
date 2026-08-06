@@ -51,6 +51,11 @@ ALTER TABLE ONLY desimper.liste_contextes
     ADD CONSTRAINT liste_contextes_pkey PRIMARY KEY (id);
 
 
+-- liste_contextes liste_contextes_table_name_key
+ALTER TABLE ONLY desimper.liste_contextes
+    ADD CONSTRAINT liste_contextes_table_name_key UNIQUE (nom_table);
+
+
 -- nomenclature_destinations nomenclature_destinations_code_key
 ALTER TABLE ONLY desimper.nomenclature_destinations
     ADD CONSTRAINT nomenclature_destinations_code_key UNIQUE (code);

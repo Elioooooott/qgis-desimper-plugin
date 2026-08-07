@@ -19,6 +19,79 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- fill_contextes_projets(integer)
+CREATE FUNCTION desimper.fill_contextes_projets(id_projet integer) RETURNS json
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE 
+    contexte record;
+    geom_projet geometry;
+BEGIN
+
+    -- Check if id projet exist
+    IF (SELECT COUNT(*) FROM desimper.projets WHERE id = id_projet) = 0 THEN
+        RETURN json_build_object(
+            'status', 'error',
+            'message', 'Le projet passé en paramètre n''existe pas'
+        );
+    END IF;
+    
+    -- Get the geom of the project
+    SELECT ST_CollectionExtract(ST_MakeValid(geom), 3) INTO geom_projet
+    FROM desimper.projets WHERE id = id_projet;
+
+    -- Clear the table 
+    DELETE FROM desimper.contextes_projets WHERE fk_id_projet = id_projet;
+
+    -- Reset the sequence
+    PERFORM setval(
+        pg_get_serial_sequence('desimper.contextes_projets', 'id'),
+        COALESCE((SELECT MAX(id) FROM desimper.contextes_projets), 0) + 1,
+        false
+    );   
+
+    -- Loop to add all context who intersect the project
+    FOR contexte IN SELECT nom_schema, nom_table, code 
+    FROM desimper.liste_contextes 
+    LOOP
+        EXECUTE format(
+            $SQL$
+                INSERT INTO desimper.contextes_projets
+                    (fk_id_projet, geom, code_contexte, id_objet_contexte, surface_m, login)
+                SELECT
+                    %1$L,
+                    ST_Multi(ST_CollectionExtract(ST_MakeValid(valid_contexts.geom), 3)),
+                    %2$L,
+                    valid_contexts.id,
+                    ST_Area(valid_contexts.geom),
+                    'login fonction fill_contextes_projets'
+                FROM (
+                    SELECT c.id AS id,
+                    ST_Multi(ST_CollectionExtract(ST_Intersection(%3$L, ST_MakeValid(c.geom)), 3)) AS geom
+                    FROM %4$I.%5$I AS c
+                    WHERE ST_Intersects(c.geom, %3$L)
+                ) AS valid_contexts
+                WHERE NOT ST_IsEmpty(valid_contexts.geom)
+            $SQL$,
+            id_projet, contexte.code, geom_projet, contexte.nom_schema, contexte.nom_table
+        );
+    END LOOP;
+
+    RETURN json_build_object(
+            'status', 'success',
+            'message', 'ok',
+            'rows_inserted', (SELECT COUNT(*) FROM desimper.contextes_projets WHERE fk_id_projet = id_projet),
+            'contexts_intersected', (SELECT COUNT(DISTINCT(code_contexte)) FROM desimper.contextes_projets WHERE fk_id_projet = id_projet)
+    );
+
+END;
+$_$;
+
+
+-- FUNCTION fill_contextes_projets(id_projet integer)
+COMMENT ON FUNCTION desimper.fill_contextes_projets(id_projet integer) IS 'Ajoute à la table contextes_projets les contextes qui intersectent le projet';
+
+
 -- import_data_from_temporary_tables(text, text, text, text, text, text)
 CREATE FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) RETURNS json
     LANGUAGE plpgsql
@@ -26,23 +99,71 @@ CREATE FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, tem
 DECLARE
     target_schema text;
     target_table text;
+    expected_type text;
+    invalid_number integer;
+    invalid_details text;
 BEGIN
 
-    -- Get the target table and schema from the context list
+    -- Get the target table, schema and expected value type from the context list
     EXECUTE format(
         $SQL$
-            SELECT nom_schema, nom_table
+            SELECT nom_schema, nom_table, type_valeur
             FROM desimper.liste_contextes
             WHERE code = %1$L
         $SQL$,
         code_context
     )
-    INTO target_schema, target_table;
+    INTO target_schema, target_table, expected_type;
 
+    -- Check if target table exist
     IF target_table IS NULL THEN
         RETURN json_build_object(
             'status', 'error',
             'message', format('Aucune table cible pour le contexte %s', code_context)
+        );
+    END IF;
+
+    -- Check if data type is the one expected
+    EXECUTE format(
+        $SQL$
+            -- Get invalid values
+            WITH invalid_values AS (
+                SELECT %3$I::text AS id_object, %4$I::text AS value
+                FROM %1$I.%2$I
+                WHERE NOT desimper.is_given_type(%4$I::text, %5$L)
+            )
+            SELECT
+                -- Number of invalid values
+                (SELECT count(*) FROM invalid_values),
+                -- List of invalid values
+                (
+                    SELECT string_agg('L''objet ' || id_object || ' a la valeur "' || coalesce(value, 'NULL') || '"', E'\n' ORDER BY id_object)
+                    FROM (SELECT * FROM invalid_values ORDER BY id_object LIMIT 10) AS extract
+                )
+        $SQL$,
+        temp_schema,
+        temp_table,
+        unique_id_field,
+        value_field,
+        expected_type
+    )
+    INTO invalid_number, invalid_details;
+
+    -- Return error if there are invalid values
+    IF invalid_number > 0 THEN
+        IF invalid_number > 10 THEN
+            invalid_details := invalid_details || format(', … (%s autres)', invalid_number - 10);
+        END IF;
+        RETURN json_build_object(
+            'status', 'error',
+            'message', format(
+                'Les valeurs du champ %s doivent être de type %s pour le contexte %s',
+                value_field, expected_type, code_context
+            ),
+            'data', json_build_object(
+                'number', invalid_number,
+                'details', invalid_details
+            )
         );
     END IF;
 
@@ -129,7 +250,7 @@ BEGIN
     EXECUTE format(
         $SQL$
             INSERT INTO %1$I.%2$I (unique_object_id, geom, fk_code_liste_contextes, libelle, valeur)
-            SELECT %8$I, ST_Multi(ST_Subdivide(geom)), %3$L, %4$I, %5$I
+            SELECT %8$I, ST_Multi(ST_Subdivide(ST_CollectionExtract(ST_MakeValid(geom), 3))), %3$L, %4$I, %5$I
             FROM %6$I.%7$I
         $SQL$,
         target_schema,
@@ -153,6 +274,67 @@ $_$;
 
 -- FUNCTION import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text)
 COMMENT ON FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) IS 'Import data from temporary tables into schema and table defined in desimper.liste_contextes';
+
+
+-- is_given_type(text, text)
+CREATE FUNCTION desimper.is_given_type(s text, t text) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Avoid to test empty strings
+    s = Nullif(s, '');
+    IF s IS NULL THEN
+        return true;
+    END IF;
+
+    -- The expected type comes from user filled data, normalize it
+    -- otherwise 'Integer' or 'integer ' would silently fall into the ELSE branch
+    t = lower(btrim(t));
+
+    -- Test to cast the string to the given type
+    IF t = 'date' THEN
+        PERFORM s::date;
+        RETURN true;
+    ELSIF t = 'time' THEN
+        PERFORM s::time;
+        RETURN true;
+    ELSIF t = 'timestamp' THEN
+        PERFORM CAST(s AS timestamp);
+        RETURN true;
+    ELSIF t = 'integer' THEN
+        PERFORM s::integer;
+        RETURN true;
+    ELSIF t = 'real' THEN
+        PERFORM s::real;
+        RETURN true;
+    ELSIF t = 'text' THEN
+        PERFORM s::text;
+        RETURN true;
+    ELSIF t = 'boolean' THEN
+        PERFORM s::boolean;
+        RETURN true;
+    ELSIF t = 'uuid' THEN
+        PERFORM s::uuid;
+        RETURN true;
+    ELSIF t = 'wkt' THEN
+        PERFORM (ST_GeomFromText(s))::geometry;
+        RETURN true;
+    ELSE
+        -- Unsupported type: consider the value as invalid
+        -- Prevent silent errors when the user enters a wrong type
+        RETURN false;
+    END IF;
+EXCEPTION WHEN others THEN
+    return false;
+END;
+$$;
+
+
+-- FUNCTION is_given_type(s text, t text)
+COMMENT ON FUNCTION desimper.is_given_type(s text, t text) IS ' Teste si la valeur d''un champ correspond au type donné. 
+Retourne vrai s''il est possible de caster la valeur dans le type donné attendu.
+Valeurs vides et NULL sont toujours considérées valides. 
+Si le type n''est pas supporté, la valeur est considérée invalide.';
 
 
 --

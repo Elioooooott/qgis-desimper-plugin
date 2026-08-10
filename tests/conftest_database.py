@@ -3,7 +3,7 @@
 import os
 
 from pathlib import Path
-from typing import Iterator, Optional, Sequence
+from typing import Any, Iterator, Optional, Sequence
 
 import psycopg
 import pytest
@@ -61,7 +61,7 @@ def db_test_sql(data: Path) -> Sequence[Path]:
     """Return the list of sql scripts to run
     when initializing database for tests
     """
-    return (data.joinpath("install-version-1", "sql", "99_test_data.sql"),)
+    return (data.joinpath("99_test_data.sql"),)
 
 
 # The following is executed  in each test
@@ -120,6 +120,31 @@ def connected_database(processing_provider: Provider) -> None:
     params = {"CONNECTION_NAME": "test"}
     alg = f"{processing_provider.id()}:configure_plugin"
     processing.run(alg, params)
+
+
+@pytest.fixture()
+def imported_context(
+    connected_database: None,
+    context_layer: QgsVectorLayer,
+    processing_provider: Provider,
+) -> dict[str, Any]:
+    """Import the test context layer into its target table
+
+    Return the output of the import algorithm.
+    """
+    params = {
+        "CONNECTION_NAME": "test",
+        "TARGET_CONTEXT": 0,  # 0 = Baignade
+        "OVERRIDE": True,
+        "CONTEXT_LAYER": context_layer,
+        "LABEL_FIELD": "label",
+        "VALUE_FIELD": "value",
+        "UNIQUE_ID_FIELD": "id",
+    }
+    feedback = LoggerProcessingFeedBack()
+
+    alg = f"{processing_provider.id()}:import_context_data"
+    return processing.run(alg, params, feedback=feedback)
 
 
 @pytest.fixture()

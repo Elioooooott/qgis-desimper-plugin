@@ -142,7 +142,8 @@ BEGIN
 
     -- Loop to add all context who intersect the project
     FOR contexte IN SELECT nom_schema, nom_table, code 
-    FROM desimper.liste_contextes 
+    FROM desimper.liste_contextes
+    WHERE to_regclass(format('%I.%I', nom_schema, nom_table)) IS NOT NULL -- avoid errors when a context is listed in liste_contextes but its data has not been imported yet
     LOOP
         EXECUTE format(
             $SQL$

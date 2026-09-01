@@ -143,7 +143,7 @@ class ImportContextData(BaseProcessingAlgorithm):
             self.LABEL_FIELD,
             tr("Label field"),
             parentLayerParameterName=self.CONTEXT_LAYER,
-            type=QgsProcessingParameterField.String,
+            type=QgsProcessingParameterField.Any,
         )
         param.setHelp(tr("The field from which the label will be imported."))
         self.addParameter(param)
@@ -153,7 +153,7 @@ class ImportContextData(BaseProcessingAlgorithm):
             self.VALUE_FIELD,
             tr("Value field"),
             parentLayerParameterName=self.CONTEXT_LAYER,
-            type=QgsProcessingParameterField.Numeric,
+            type=QgsProcessingParameterField.Any,
         )
         param.setHelp(tr("The field from which the value will be imported."))
         self.addParameter(param)
@@ -198,6 +198,12 @@ class ImportContextData(BaseProcessingAlgorithm):
         success, error = self._is_override_confirmed(
             parameters, context, schema_name, table_name, pg_conn, connection_name
         )
+        if not success:
+            pg_conn.close()
+            return False, error
+
+        # Check values from value_field has the same type as declare in liste_contextes
+        success, error = self._is_valid_value_field(parameters, context, pg_conn, connection_name)
         if not success:
             pg_conn.close()
             return False, error
@@ -351,7 +357,7 @@ class ImportContextData(BaseProcessingAlgorithm):
             error_message += json_result.get("message", "Unknown error")
             if json_result.get("data"):
                 error_message += "\n\n" + tr("* Number: ") + str(json_result["data"]["number"])
-                error_message += "\n" + tr("* Details: ") + json_result["data"]["details"]
+                error_message += "\n" + tr("* Details: ") + "\n" + json_result["data"]["details"]
 
             status = 0
             self.cleanUp(connection_name, temp_schema, [temp_table], feedback)
@@ -429,6 +435,68 @@ class ImportContextData(BaseProcessingAlgorithm):
             )
             msg += f"\n\n{schema_name}.{table_name} : {count} "
             msg += tr("existing rows")
+            return False, msg
+
+        return True, ""
+
+    def _is_valid_value_field(self, parameters, context, pg_conn, connection_name):
+        """Check if values from value_field has the same type as declare in liste_contextes"""
+        target_context = self.context_values[parameters[self.TARGET_CONTEXT]]
+        code_context = target_context.split("-")[-1].strip()
+        source = self.parameterAsSource(parameters, self.CONTEXT_LAYER, context)
+        field_name = self.parameterAsString(parameters, self.VALUE_FIELD, context)
+        field_index = source.fields().lookupField(field_name)
+
+        sql = (
+            pg_sql.SQL("""
+            SELECT type_valeur FROM desimper.liste_contextes WHERE code = {code_context}
+        """)
+            .format(
+                code_context=pg_sql.Literal(code_context),
+            )
+            .as_string(pg_conn)
+        )
+        data, error = fetch_data_from_sql_query(connection_name, sql)
+        if error:
+            return False, error
+        if not data:
+            return (
+                False,
+                tr(
+                    "The context selected does not exist in the database. "
+                    "\n"
+                    "Create it first in the context list table."
+                ),
+            )
+        value_type = data[0][0]
+
+        # Get unique values from the value field
+        unique_values = source.uniqueValues(field_index)
+        values = [str(v) for v in unique_values if v not in (None, NULL, "")]
+        if not values:
+            return True, ""
+
+        # The type rules stay defined in a single place: the database function
+        sql = (
+            pg_sql.SQL("""
+            SELECT value
+            FROM unnest({values}::text[]) AS t(value)
+            WHERE NOT desimper.is_given_type(value, {value_type})
+            ORDER BY value
+            LIMIT 10
+        """)
+            .format(
+                values=pg_sql.Literal(values),
+                value_type=pg_sql.Literal(value_type),
+            )
+            .as_string(pg_conn)
+        )
+        invalid, error = fetch_data_from_sql_query(connection_name, sql)
+        if error:
+            return False, error
+        if invalid:
+            msg = tr("The values of the value field must be of type") + f" {value_type}"
+            msg += "\n" + tr("Invalid values: ") + ", ".join(f'"{row[0]}"' for row in invalid)
             return False, msg
 
         return True, ""

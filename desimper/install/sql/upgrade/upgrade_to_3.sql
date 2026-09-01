@@ -1,26 +1,116 @@
---
--- PostgreSQL database dump
---
+-- Add unique constraint on table_name in liste_contextes
+ALTER TABLE desimper.liste_contextes DROP CONSTRAINT IF EXISTS liste_contextes_table_name_key;
+ALTER TABLE desimper.liste_contextes ADD CONSTRAINT liste_contextes_table_name_key UNIQUE (nom_table);
+
+-- Add login, created_at, updated_at columns
+ALTER TABLE desimper.liste_contextes ADD COLUMN IF NOT EXISTS login text;
+ALTER TABLE desimper.liste_contextes ADD COLUMN IF NOT EXISTS cree_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone;
+ALTER TABLE desimper.liste_contextes ADD COLUMN IF NOT EXISTS modifie_le timestamp without time zone DEFAULT (now())::timestamp(0) without time zone;
+COMMENT ON COLUMN desimper.liste_contextes.login IS 'Login de l''utilisateur qui a créé le contexte';
+COMMENT ON COLUMN desimper.liste_contextes.cree_le IS 'Date de création du contexte';
+COMMENT ON COLUMN desimper.liste_contextes.modifie_le IS 'Date de la dernière modification du contexte';
+
+-- Replace "cree_par", "modifie_par", "cree_le", "modifie_le" with "login" in contextes_projet table
+ALTER TABLE desimper.contextes_projets
+    DROP COLUMN IF EXISTS fk_cree_par,
+    DROP COLUMN IF EXISTS fk_modifie_par,
+    ADD COLUMN IF NOT EXISTS login text,
+    -- Add not null constraints
+    ALTER COLUMN code_contexte SET NOT NULL,
+    ALTER COLUMN id_objet_contexte SET NOT NULL
+;
+COMMENT ON COLUMN desimper.contextes_projets.login IS 'Login de l''utilisateur qui a créé le contexte';
+
+ALTER TABLE desimper.projets
+    DROP COLUMN IF EXISTS fk_cree_par,
+    DROP COLUMN IF EXISTS fk_modifie_par,
+    ADD COLUMN IF NOT EXISTS login text
+;
+COMMENT ON COLUMN desimper.projets.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
+ALTER TABLE desimper.surfaces_projet
+    DROP COLUMN IF EXISTS fk_cree_par,
+    DROP COLUMN IF EXISTS fk_modifie_par,
+    ADD COLUMN IF NOT EXISTS login text
+;
+COMMENT ON COLUMN desimper.surfaces_projet.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
+ALTER TABLE desimper.variantes
+    DROP COLUMN IF EXISTS fk_cree_par,
+    DROP COLUMN IF EXISTS fk_modifie_par,
+    ADD COLUMN IF NOT EXISTS login text
+;
+COMMENT ON COLUMN desimper.variantes.login IS 'Login de l''utilisateur qui a créé le contexte';
 
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
+-- Function to check if a field value corresponds to the given type
+DROP FUNCTION IF EXISTS desimper.is_given_type(text, text);
+CREATE OR REPLACE FUNCTION desimper.is_given_type(s text, t text)
+RETURNS BOOLEAN AS $BODY$
+BEGIN
+    -- Avoid to test empty strings
+    s = Nullif(s, '');
+    IF s IS NULL THEN
+        return true;
+    END IF;
 
+    -- The expected type comes from user filled data, normalize it
+    -- otherwise 'Integer' or 'integer ' would silently fall into the ELSE branch
+    t = lower(btrim(t));
 
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
+    -- Test to cast the string to the given type
+    IF t = 'date' THEN
+        PERFORM s::date;
+        RETURN true;
+    ELSIF t = 'time' THEN
+        PERFORM s::time;
+        RETURN true;
+    ELSIF t = 'timestamp' THEN
+        PERFORM CAST(s AS timestamp);
+        RETURN true;
+    ELSIF t = 'integer' THEN
+        PERFORM s::integer;
+        RETURN true;
+    ELSIF t = 'real' THEN
+        PERFORM s::real;
+        RETURN true;
+    ELSIF t = 'text' THEN
+        PERFORM s::text;
+        RETURN true;
+    ELSIF t = 'boolean' THEN
+        PERFORM s::boolean;
+        RETURN true;
+    ELSIF t = 'uuid' THEN
+        PERFORM s::uuid;
+        RETURN true;
+    ELSIF t = 'wkt' THEN
+        PERFORM (ST_GeomFromText(s))::geometry;
+        RETURN true;
+    ELSE
+        -- Unsupported type: consider the value as invalid
+        -- Prevent silent errors when the user enters a wrong type
+        RETURN false;
+    END IF;
+EXCEPTION WHEN others THEN
+    return false;
+END;
+$BODY$ LANGUAGE plpgsql
+;
 
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
+COMMENT ON FUNCTION desimper.is_given_type(text, text)
+IS ' Teste si la valeur d''un champ correspond au type donné. 
+Retourne vrai s''il est possible de caster la valeur dans le type donné attendu.
+Valeurs vides et NULL sont toujours considérées valides. 
+Si le type n''est pas supporté, la valeur est considérée invalide.'
+;
 
--- fill_contextes_projets(integer)
-CREATE FUNCTION desimper.fill_contextes_projets(id_projet integer) RETURNS json
+-- Function to fill the contextes_projets table
+CREATE OR REPLACE FUNCTION desimper.fill_contextes_projets(
+    id_projet integer
+)
+    RETURNS json
     LANGUAGE plpgsql
     AS $_$
 DECLARE 
@@ -52,7 +142,7 @@ BEGIN
 
     -- Loop to add all context who intersect the project
     FOR contexte IN SELECT nom_schema, nom_table, code 
-    FROM desimper.liste_contextes 
+    FROM desimper.liste_contextes
     WHERE to_regclass(format('%I.%I', nom_schema, nom_table)) IS NOT NULL -- avoid errors when a context is listed in liste_contextes but its data has not been imported yet
     LOOP
         EXECUTE format(
@@ -88,13 +178,18 @@ BEGIN
 END;
 $_$;
 
-
--- FUNCTION fill_contextes_projets(id_projet integer)
-COMMENT ON FUNCTION desimper.fill_contextes_projets(id_projet integer) IS 'Ajoute à la table contextes_projets les contextes qui intersectent le projet';
+COMMENT ON FUNCTION desimper.fill_contextes_projets(integer) IS 'Ajoute à la table contextes_projets les contextes qui intersectent le projet';
 
 
--- import_data_from_temporary_tables(text, text, text, text, text, text)
-CREATE FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) RETURNS json
+-- Quick fixes + add type check
+CREATE OR REPLACE FUNCTION desimper.import_data_from_temporary_tables(
+    temp_schema text,
+    temp_table text,
+    label_field text,
+    value_field text,
+    unique_id_field text,
+    code_context text
+) RETURNS json
     LANGUAGE plpgsql
     AS $_$
 DECLARE
@@ -271,76 +366,3 @@ BEGIN
 
 END;
 $_$;
-
-
--- FUNCTION import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text)
-COMMENT ON FUNCTION desimper.import_data_from_temporary_tables(temp_schema text, temp_table text, label_field text, value_field text, unique_id_field text, code_context text) IS 'Import data from temporary tables into schema and table defined in desimper.liste_contextes';
-
-
--- is_given_type(text, text)
-CREATE FUNCTION desimper.is_given_type(s text, t text) RETURNS boolean
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- Avoid to test empty strings
-    s = Nullif(s, '');
-    IF s IS NULL THEN
-        return true;
-    END IF;
-
-    -- The expected type comes from user filled data, normalize it
-    -- otherwise 'Integer' or 'integer ' would silently fall into the ELSE branch
-    t = lower(btrim(t));
-
-    -- Test to cast the string to the given type
-    IF t = 'date' THEN
-        PERFORM s::date;
-        RETURN true;
-    ELSIF t = 'time' THEN
-        PERFORM s::time;
-        RETURN true;
-    ELSIF t = 'timestamp' THEN
-        PERFORM CAST(s AS timestamp);
-        RETURN true;
-    ELSIF t = 'integer' THEN
-        PERFORM s::integer;
-        RETURN true;
-    ELSIF t = 'real' THEN
-        PERFORM s::real;
-        RETURN true;
-    ELSIF t = 'text' THEN
-        PERFORM s::text;
-        RETURN true;
-    ELSIF t = 'boolean' THEN
-        PERFORM s::boolean;
-        RETURN true;
-    ELSIF t = 'uuid' THEN
-        PERFORM s::uuid;
-        RETURN true;
-    ELSIF t = 'wkt' THEN
-        PERFORM (ST_GeomFromText(s))::geometry;
-        RETURN true;
-    ELSE
-        -- Unsupported type: consider the value as invalid
-        -- Prevent silent errors when the user enters a wrong type
-        RETURN false;
-    END IF;
-EXCEPTION WHEN others THEN
-    return false;
-END;
-$$;
-
-
--- FUNCTION is_given_type(s text, t text)
-COMMENT ON FUNCTION desimper.is_given_type(s text, t text) IS ' Teste si la valeur d''un champ correspond au type donné. 
-Retourne vrai s''il est possible de caster la valeur dans le type donné attendu.
-Valeurs vides et NULL sont toujours considérées valides. 
-Si le type n''est pas supporté, la valeur est considérée invalide.';
-
-
---
--- PostgreSQL database dump complete
---
-
-
-

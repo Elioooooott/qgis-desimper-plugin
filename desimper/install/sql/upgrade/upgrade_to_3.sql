@@ -116,6 +116,7 @@ CREATE OR REPLACE FUNCTION desimper.fill_contextes_projets(
 DECLARE 
     contexte record;
     geom_projet geometry;
+    login_projet text;
 BEGIN
 
     -- Check if id projet exist
@@ -126,8 +127,9 @@ BEGIN
         );
     END IF;
     
-    -- Get the geom of the project
-    SELECT ST_CollectionExtract(ST_MakeValid(geom), 3) INTO geom_projet
+    -- Get the geom and the login of the project
+    SELECT ST_CollectionExtract(ST_MakeValid(geom), 3), login
+    INTO geom_projet, login_projet
     FROM desimper.projets WHERE id = id_projet;
 
     -- Clear the table 
@@ -155,7 +157,7 @@ BEGIN
                     %2$L,
                     valid_contexts.id,
                     ST_Area(valid_contexts.geom),
-                    'login fonction fill_contextes_projets'
+                    %6$L
                 FROM (
                     SELECT c.id AS id,
                     ST_Multi(ST_CollectionExtract(ST_Intersection(%3$L, ST_MakeValid(c.geom)), 3)) AS geom
@@ -164,7 +166,7 @@ BEGIN
                 ) AS valid_contexts
                 WHERE NOT ST_IsEmpty(valid_contexts.geom)
             $SQL$,
-            id_projet, contexte.code, geom_projet, contexte.nom_schema, contexte.nom_table
+            id_projet, contexte.code, geom_projet, contexte.nom_schema, contexte.nom_table, login_projet
         );
     END LOOP;
 

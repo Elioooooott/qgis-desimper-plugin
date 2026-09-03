@@ -505,3 +505,10 @@ CREATE TRIGGER trg_aa_before_insert_or_update
     BEFORE INSERT OR UPDATE ON desimper.variantes
     FOR EACH ROW EXECUTE FUNCTION desimper.aa_before_insert_or_update()
 ;
+
+ALTER TABLE desimper.contextes_projets
+DROP CONSTRAINT IF EXISTS fk_id_projet,
+ADD CONSTRAINT fk_id_projet
+    FOREIGN KEY (fk_id_projet)
+    REFERENCES desimper.projets (id)
+    ON DELETE CASCADE;
